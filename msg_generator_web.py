@@ -10,6 +10,7 @@ import subprocess
 import os
 import json
 import urllib.parse
+import mimetypes
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -87,11 +88,24 @@ HTML_TEMPLATE = """
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+        .download-btn {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .download-btn:hover {
+            background-color: #218838;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📧 MSG File Generator</h1>
+        <h1>MSG File Generator</h1>
         <form id="msgForm">
             <div class="form-group">
                 <label for="senderEmail">Sender Email:</label>
@@ -158,7 +172,19 @@ HTML_TEMPLATE = """
                 const result = await response.json();
                 
                 messageDiv.className = 'message ' + (result.success ? 'success' : 'error');
-                messageDiv.textContent = result.message;
+                messageDiv.innerHTML = result.message;
+                
+                // Add download button if successful
+                if (result.success && result.filename) {
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = '/download?file=' + encodeURIComponent(result.filename);
+                    downloadLink.className = 'download-btn';
+                    downloadLink.textContent = '⬇ Download ' + result.filename;
+                    downloadLink.download = result.filename;
+                    messageDiv.appendChild(document.createElement('br'));
+                    messageDiv.appendChild(downloadLink);
+                }
+                
                 messageDiv.style.display = 'block';
                 
             } catch (error) {
@@ -174,11 +200,14 @@ HTML_TEMPLATE = """
 
 class MsgGeneratorHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        """Serve the HTML form"""
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-        self.wfile.write(HTML_TEMPLATE.encode())
+        """Serve the HTML form or download files"""
+        if self.path.startswith('/download'):
+            self.handle_download()
+        else:
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(HTML_TEMPLATE.encode())
     
     def do_POST(self):
         """Handle form submission"""
@@ -224,22 +253,70 @@ class MsgGeneratorHandler(BaseHTTPRequestHandler):
                 if result.returncode == 0:
                     self.send_json_response({
                         'success': True, 
-                        'message': f'✅ MSG file created successfully!\n\n{result.stdout}'
+                        'message': f'Success! MSG file created successfully!',
+                        'filename': output_file
                     })
                 else:
                     self.send_json_response({
                         'success': False,
-                        'message': f'❌ Failed to generate MSG file:\n\n{result.stderr}'
+                        'message': f'Error: Failed to generate MSG file:\n\n{result.stderr}'
                     })
             
             except Exception as e:
                 self.send_json_response({
                     'success': False,
-                    'message': f'❌ Error: {str(e)}'
+                    'message': f'Error: {str(e)}'
                 })
         else:
             self.send_response(404)
             self.end_headers()
+    
+    def handle_download(self):
+        """Handle file download requests"""
+        # Parse query string
+        query = urllib.parse.urlparse(self.path).query
+        params = urllib.parse.parse_qs(query)
+        
+        if 'file' not in params:
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(b'Missing file parameter')
+            return
+        
+        filename = params['file'][0]
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(script_dir, 'msg_files', filename)
+        
+        # Security check - ensure the file is within msg_files directory
+        if not os.path.abspath(file_path).startswith(os.path.join(script_dir, 'msg_files')):
+            self.send_response(403)
+            self.end_headers()
+            self.wfile.write(b'Access denied')
+            return
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            self.send_response(404)
+            self.end_headers()
+            self.wfile.write(b'File not found')
+            return
+        
+        # Send file
+        try:
+            with open(file_path, 'rb') as f:
+                content = f.read()
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/vnd.ms-outlook')
+            self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
+            self.send_header('Content-Length', str(len(content)))
+            self.end_headers()
+            self.wfile.write(content)
+        
+        except Exception as e:
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(f'Error reading file: {str(e)}'.encode())
     
     def send_json_response(self, data):
         """Send JSON response"""
@@ -255,16 +332,16 @@ class MsgGeneratorHandler(BaseHTTPRequestHandler):
 def main():
     port = 8080
     server = HTTPServer(('localhost', port), MsgGeneratorHandler)
-    print(f"🌐 MSG Generator Web Interface")
-    print(f"🚀 Server running at: http://localhost:{port}")
-    print(f"📂 Working directory: {os.getcwd()}")
-    print(f"\n✨ Open http://localhost:{port} in your browser to create MSG files")
-    print(f"🛑 Press Ctrl+C to stop the server\n")
+    print(f"MSG Generator Web Interface")
+    print(f"Server running at: http://localhost:{port}")
+    print(f"Working directory: {os.getcwd()}")
+    print(f"\nOpen http://localhost:{port} in your browser to create MSG files")
+    print(f"Press Ctrl+C to stop the server\n")
     
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\n\n👋 Server stopped. Goodbye!")
+        print("\n\nServer stopped. Goodbye!")
         server.shutdown()
 
 if __name__ == "__main__":
