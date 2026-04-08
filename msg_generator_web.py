@@ -38,6 +38,15 @@ HTML_TEMPLATE = """
         .form-group {
             margin-bottom: 20px;
         }
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
         label {
             display: block;
             margin-bottom: 5px;
@@ -107,29 +116,33 @@ HTML_TEMPLATE = """
     <div class="container">
         <h1>MSG File Generator</h1>
         <form id="msgForm">
-            <div class="form-group">
-                <label for="senderEmail">Sender Email:</label>
-                <input type="email" id="senderEmail" name="senderEmail" value="dev@example.com" required>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="senderEmail">Sender Email:</label>
+                    <input type="email" id="senderEmail" name="senderEmail" value="dev@example.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="senderName">Sender Name:</label>
+                    <input type="text" id="senderName" name="senderName" value="Linux Developer" required>
+                </div>
             </div>
             
-            <div class="form-group">
-                <label for="senderName">Sender Name:</label>
-                <input type="text" id="senderName" name="senderName" value="Linux Developer" required>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="recipientEmail">Recipient Email:</label>
+                    <input type="email" id="recipientEmail" name="recipientEmail" value="client@example.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="recipientName">Recipient Name:</label>
+                    <input type="text" id="recipientName" name="recipientName" value="Client Name" required>
+                </div>
             </div>
             
             <div class="form-group">
                 <label for="subject">Subject:</label>
                 <input type="text" id="subject" name="subject" value="Generated Email" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="recipientEmail">Recipient Email:</label>
-                <input type="email" id="recipientEmail" name="recipientEmail" value="client@example.com" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="recipientName">Recipient Name:</label>
-                <input type="text" id="recipientName" name="recipientName" value="Client Name" required>
             </div>
             
             <div class="form-group">
@@ -179,7 +192,7 @@ HTML_TEMPLATE = """
                     const downloadLink = document.createElement('a');
                     downloadLink.href = '/download?file=' + encodeURIComponent(result.filename);
                     downloadLink.className = 'download-btn';
-                    downloadLink.textContent = '⬇ Download ' + result.filename;
+                    downloadLink.textContent = 'Download ' + result.filename;
                     downloadLink.download = result.filename;
                     messageDiv.appendChild(document.createElement('br'));
                     messageDiv.appendChild(downloadLink);
