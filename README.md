@@ -83,6 +83,9 @@ The file will be saved to `msg_files/meeting-reminder.msg`.
 
 ### Option 2: Web Interface (No extra dependencies)
 
+<img src="https://github.com/impressto/MsgGenerator/blob/master/assets/webgui-interface.jpg" />
+
+
 Start the web server:
 
 ```bash
