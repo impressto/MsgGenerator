@@ -26,13 +26,31 @@ if (!Directory.Exists(msgDirectory))
 // Combine with msg_files directory
 string fullPath = Path.Combine(msgDirectory, outputFile);
 
-// Define the email structure
+// Define the email structure with enhanced properties
 using (var email = new Email(
     new Sender(senderEmail, senderName),
+    new Representing(senderEmail, senderName),
     subject))
 {
+    // Set timestamps
+    email.SentOn = DateTime.Now;
+    email.ReceivedOn = DateTime.Now;
+    
+    // Add recipient
     email.Recipients.AddTo(recipientEmail, recipientName);
+    
+    // Set both plain text and HTML body for better compatibility
     email.BodyText = body;
+    email.BodyHtml = $"<html><body><p>{System.Net.WebUtility.HtmlEncode(body).Replace("\n", "<br>")}</p></body></html>";
+    
+    // Set RTF body for better compatibility with Outlook
+    email.BodyRtf = @"{\rtf1\ansi\deff0 {\fonttbl {\f0 Arial;}} \f0\fs20 " + body.Replace("\n", "\\par ") + "}";
+    
+    // Set importance to normal
+    email.Importance = MsgKit.Enums.MessageImportance.IMPORTANCE_NORMAL;
+    
+    // Set icon index (for proper display in email clients)
+    email.IconIndex = MsgKit.Enums.MessageIconIndex.NewMail;
     
     // Save to the specified output file
     email.Save(fullPath);
