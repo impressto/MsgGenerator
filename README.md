@@ -1,5 +1,7 @@
 # MSG Generator
 
+<img src="https://github.com/impressto/MsgGenerator/blob/master/assets/assets/death-star.png" />
+
 A cross-platform tool for creating Outlook `.msg` email files on Linux without requiring Microsoft Outlook. Built with C# (.NET 8) and includes Python-based GUI interfaces.
 
 ## Features
