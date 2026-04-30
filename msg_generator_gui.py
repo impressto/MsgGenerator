@@ -96,6 +96,19 @@ class MsgGeneratorGUI:
         browse_btn.grid(row=0, column=1, padx=(5, 0))
         
         output_frame.columnconfigure(0, weight=1)
+
+        # Optional attachment file
+        ttk.Label(main_frame, text="Attachment (Optional):").grid(row=8, column=0, sticky=tk.W, pady=5)
+        attachment_frame = ttk.Frame(main_frame)
+        attachment_frame.grid(row=8, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        self.attachment_file = ttk.Entry(attachment_frame, width=40)
+        self.attachment_file.grid(row=0, column=0, sticky=(tk.W, tk.E))
+
+        attachment_browse_btn = ttk.Button(attachment_frame, text="Browse", command=self.browse_attachment)
+        attachment_browse_btn.grid(row=0, column=1, padx=(5, 0))
+
+        attachment_frame.columnconfigure(0, weight=1)
         
         # Generate button
         generate_btn = ttk.Button(main_frame, text="Generate MSG File", command=self.generate_msg)
@@ -114,6 +127,15 @@ class MsgGeneratorGUI:
         if filename:
             self.output_file.delete(0, tk.END)
             self.output_file.insert(0, filename)
+
+    def browse_attachment(self):
+        """Open file dialog to choose an optional attachment"""
+        filename = filedialog.askopenfilename(
+            filetypes=[("All files", "*.*")]
+        )
+        if filename:
+            self.attachment_file.delete(0, tk.END)
+            self.attachment_file.insert(0, filename)
     
     def generate_msg(self):
         """Call the C# MsgGenerator with the provided arguments"""
@@ -125,6 +147,7 @@ class MsgGeneratorGUI:
         recipient_name = self.recipient_name.get().strip()
         body = self.body.get(1.0, tk.END).strip()
         output_file = self.output_file.get().strip()
+        attachment_file = self.attachment_file.get().strip()
         
         # Validate inputs
         if not all([sender_email, sender_name, subject, recipient_email, recipient_name, body, output_file]):
@@ -140,6 +163,9 @@ class MsgGeneratorGUI:
             sender_email, sender_name, subject, 
             recipient_email, recipient_name, body, output_file
         ]
+
+        if attachment_file:
+            cmd.append(attachment_file)
         
         try:
             # Run the C# program

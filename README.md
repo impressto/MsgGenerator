@@ -12,6 +12,7 @@ A cross-platform tool for creating Outlook `.msg` email files on Linux without r
   - Desktop GUI (tkinter)
   - Web-based interface
 - Customize sender, recipient, subject, and body
+- Attach a single file (for example a CSV)
 - No Microsoft Outlook required
 
 ## Prerequisites
@@ -73,12 +74,12 @@ dotnet build
 Run the program directly with command-line arguments:
 
 ```bash
-dotnet run "sender@example.com" "Sender Name" "Email Subject" "recipient@example.com" "Recipient Name" "Email body text" "output.msg"
+dotnet run "sender@example.com" "Sender Name" "Email Subject" "recipient@example.com" "Recipient Name" "Email body text" "output.msg" ["/path/to/attachment.csv"]
 ```
 
 **Example:**
 ```bash
-dotnet run "john@example.com" "John Doe" "Meeting Reminder" "jane@example.com" "Jane Smith" "Don't forget about our meeting tomorrow at 2 PM." "meeting-reminder.msg"
+dotnet run "john@example.com" "John Doe" "Meeting Reminder" "jane@example.com" "Jane Smith" "Don't forget about our meeting tomorrow at 2 PM." "meeting-reminder.msg" "/home/user/reports/summary.csv"
 ```
 
 The file will be saved to `msg_files/meeting-reminder.msg`.
@@ -99,7 +100,7 @@ Then open your browser and navigate to:
 http://localhost:8080
 ```
 
-Fill out the form and click "Generate MSG File" to create your `.msg` file.
+Fill out the form, optionally choose an attachment file, and click "Generate MSG File" to create your `.msg` file.
 
 **To stop the server:** Press `Ctrl+C` in the terminal.
 
@@ -115,6 +116,7 @@ A window will open where you can:
 - Enter sender and recipient information
 - Write your email subject and body
 - Specify the output filename
+- Optionally select one attachment file
 - Click "Generate MSG File" to create the file
 
 ## Output

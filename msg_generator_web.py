@@ -11,6 +11,8 @@ import os
 import json
 import urllib.parse
 import mimetypes
+import cgi
+import tempfile
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -155,6 +157,12 @@ HTML_TEMPLATE = """
                 <input type="text" id="outputFile" name="outputFile" value="Success.msg" required>
                 <small style="color: #666;">Files will be saved to: msg_files/</small>
             </div>
+
+            <div class="form-group">
+                <label for="attachmentFile">Attachment (Optional):</label>
+                <input type="file" id="attachmentFile" name="attachmentFile" accept=".csv,.txt,.pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.zip,*/*">
+                <small style="color: #666;">You can attach a CSV or any file type.</small>
+            </div>
             
             <button type="submit">Generate MSG File</button>
         </form>
@@ -167,8 +175,6 @@ HTML_TEMPLATE = """
             e.preventDefault();
             
             const formData = new FormData(e.target);
-            const data = {};
-            formData.forEach((value, key) => data[key] = value);
             
             const messageDiv = document.getElementById('message');
             messageDiv.style.display = 'none';
@@ -176,10 +182,7 @@ HTML_TEMPLATE = """
             try {
                 const response = await fetch('/generate', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
+                    body: formData
                 });
                 
                 const result = await response.json();
@@ -225,20 +228,40 @@ class MsgGeneratorHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Handle form submission"""
         if self.path == '/generate':
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            
             try:
-                data = json.loads(post_data.decode())
-                
-                # Extract form data
-                sender_email = data.get('senderEmail', '').strip()
-                sender_name = data.get('senderName', '').strip()
-                subject = data.get('subject', '').strip()
-                recipient_email = data.get('recipientEmail', '').strip()
-                recipient_name = data.get('recipientName', '').strip()
-                body = data.get('body', '').strip()
-                output_file = data.get('outputFile', '').strip()
+                content_type = self.headers.get('Content-Type', '')
+
+                if content_type.startswith('multipart/form-data'):
+                    form = cgi.FieldStorage(
+                        fp=self.rfile,
+                        headers=self.headers,
+                        environ={
+                            'REQUEST_METHOD': 'POST',
+                            'CONTENT_TYPE': content_type,
+                        },
+                    )
+
+                    sender_email = form.getvalue('senderEmail', '').strip()
+                    sender_name = form.getvalue('senderName', '').strip()
+                    subject = form.getvalue('subject', '').strip()
+                    recipient_email = form.getvalue('recipientEmail', '').strip()
+                    recipient_name = form.getvalue('recipientName', '').strip()
+                    body = form.getvalue('body', '').strip()
+                    output_file = form.getvalue('outputFile', '').strip()
+                    attachment_field = form['attachmentFile'] if 'attachmentFile' in form else None
+                else:
+                    content_length = int(self.headers.get('Content-Length', '0'))
+                    post_data = self.rfile.read(content_length)
+                    data = json.loads(post_data.decode())
+
+                    sender_email = data.get('senderEmail', '').strip()
+                    sender_name = data.get('senderName', '').strip()
+                    subject = data.get('subject', '').strip()
+                    recipient_email = data.get('recipientEmail', '').strip()
+                    recipient_name = data.get('recipientName', '').strip()
+                    body = data.get('body', '').strip()
+                    output_file = data.get('outputFile', '').strip()
+                    attachment_field = None
                 
                 # Validate
                 if not all([sender_email, sender_name, subject, recipient_email, recipient_name, body, output_file]):
@@ -248,12 +271,27 @@ class MsgGeneratorHandler(BaseHTTPRequestHandler):
                 # Get script directory
                 script_dir = os.path.dirname(os.path.abspath(__file__))
                 
+                temp_attachment_path = None
+
+                # Save optional uploaded attachment to a temporary file
+                if attachment_field is not None and getattr(attachment_field, 'filename', None):
+                    uploaded_filename = os.path.basename(attachment_field.filename)
+                    temp_dir = os.path.join(script_dir, 'tmp_uploads')
+                    os.makedirs(temp_dir, exist_ok=True)
+
+                    fd, temp_attachment_path = tempfile.mkstemp(prefix='msg_attach_', suffix='_' + uploaded_filename, dir=temp_dir)
+                    with os.fdopen(fd, 'wb') as temp_file:
+                        temp_file.write(attachment_field.file.read())
+
                 # Build command
                 cmd = [
                     "dotnet", "run", "--project", script_dir, "--",
                     sender_email, sender_name, subject,
                     recipient_email, recipient_name, body, output_file
                 ]
+
+                if temp_attachment_path:
+                    cmd.append(temp_attachment_path)
                 
                 # Run the C# program
                 result = subprocess.run(
@@ -262,6 +300,9 @@ class MsgGeneratorHandler(BaseHTTPRequestHandler):
                     text=True,
                     cwd=script_dir
                 )
+
+                if temp_attachment_path and os.path.exists(temp_attachment_path):
+                    os.remove(temp_attachment_path)
                 
                 if result.returncode == 0:
                     self.send_json_response({
@@ -276,6 +317,13 @@ class MsgGeneratorHandler(BaseHTTPRequestHandler):
                     })
             
             except Exception as e:
+                # Best effort cleanup for a partially processed upload
+                try:
+                    if 'temp_attachment_path' in locals() and temp_attachment_path and os.path.exists(temp_attachment_path):
+                        os.remove(temp_attachment_path)
+                except Exception:
+                    pass
+
                 self.send_json_response({
                     'success': False,
                     'message': f'Error: {str(e)}'
